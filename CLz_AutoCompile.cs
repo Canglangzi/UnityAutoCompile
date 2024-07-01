@@ -7,13 +7,13 @@ using System.Net;
 namespace Editor
 {
     [InitializeOnLoad]
-    public static class AutoCompile
+    public static class CLz_AutoCompile
     {
         private static HttpListener listener;
         private static bool needUpdate;
         private static string port = "10245";
 
-        static AutoCompile()
+        static CLz_AutoCompile()
         {
             needUpdate = false;
             CompilationPipeline.compilationStarted += OnCompilationStarted;
@@ -26,15 +26,13 @@ namespace Editor
         {
             try
             {
-                if (listener != null)
-                {
-                    _closeListener();
-                }
+                _closeListener(); // Ensure previous listener is closed
 
                 listener = new HttpListener();
                 listener.Prefixes.Add("http://127.0.0.1:" + port + "/refresh/");
                 listener.Start();
-                listener.BeginGetContext(new AsyncCallback(OnRequest), listener);
+                listener.BeginGetContext(new AsyncCallback(OnRequest), null);
+                Debug.Log("自动编译监听器已启动");
             }
             catch (Exception e)
             {
@@ -54,27 +52,31 @@ namespace Editor
             {
                 context = listener.EndGetContext(result);
             }
+            catch (HttpListenerException)
+            {
+                return; // Listener closed or disposed
+            }
             catch (ObjectDisposedException)
             {
-                return; // 监听器已关闭
+                return; // Listener was disposed
             }
 
             if (context != null && !EditorApplication.isCompiling)
             {
                 needUpdate = true;
-                listener.BeginGetContext(new AsyncCallback(OnRequest), listener);
+                listener.BeginGetContext(new AsyncCallback(OnRequest), null);
             }
         }
 
         private static void _closeListener()
         {
-            if (listener == null)
-                return;
-
-            Debug.Log("关闭监听器");
-            listener.Stop();
-            listener.Close();
-            listener = null;
+            if (listener != null && listener.IsListening)
+            {
+                listener.Stop();
+                listener.Close();
+                listener = null;
+                Debug.Log("自动编译监听器已关闭");
+            }
         }
 
         private static void onUpdate()
@@ -83,6 +85,7 @@ namespace Editor
             {
                 needUpdate = false;
                 AssetDatabase.Refresh();
+                Debug.Log("编译完成，刷新资源");
             }
         }
 
