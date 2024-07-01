@@ -6,81 +6,86 @@ using System.Net;
 
 namespace Editor
 {
-	[InitializeOnLoad]
-	public static class AutoCompile
-	{
-		private static HttpListener listener;
-		private static bool needUpdate;
-		private static string port = "10245";
-		static AutoCompile()
-		{
-			needUpdate = false;
-			CompilationPipeline.compilationStarted += OnCompilationStarted;
-			// CompilationPipeline.compilationFinished += OnCompilationFinished;
-			EditorApplication.quitting += _closeListener;
-			EditorApplication.update += onUpdate;
-			_createListener();
-		}
+    [InitializeOnLoad]
+    public static class AutoCompile
+    {
+        private static HttpListener listener;
+        private static bool needUpdate;
+        private static string port = "10245";
 
-		private static void _createListener()
-		{
-			if (listener != null)
-			{
-				return;
-			};
-			try
-			{
-				listener = new HttpListener();
-				listener.Prefixes.Add("http://127.0.0.1:" + port + "/refresh/");
-				listener.Start();
-				listener.BeginGetContext(new AsyncCallback(OnRequest), listener);
-				// Debug.Log("Auto Compilation HTTP server started");
-			}
-			catch (Exception e)
-			{
-				Debug.Log("Auto Compilation starting failed:" + e);
-				throw;
-			}
+        static AutoCompile()
+        {
+            needUpdate = false;
+            CompilationPipeline.compilationStarted += OnCompilationStarted;
+            EditorApplication.quitting += _closeListener;
+            EditorApplication.update += onUpdate;
+            _createListener();
+        }
 
-		}
-		private static void OnRequest(IAsyncResult result)
-		{
+        private static void _createListener()
+        {
+            try
+            {
+                if (listener != null)
+                {
+                    _closeListener();
+                }
 
-			if (listener.IsListening && !EditorApplication.isCompiling)
-			{
-				listener.EndGetContext(result);
-				// var context = listener.EndGetContext(result);
-				// var request = context.Request;
-				needUpdate = true;
-				listener.BeginGetContext(new AsyncCallback(OnRequest), listener);
-			}
-		}
-		private static void _closeListener()
-		{
-			Debug.Log("Closing Listener");
-			if(listener==null)return;
-			listener.Stop();
-			listener.Close();
-			listener=null;
-		}
-		private static void onUpdate()
-		{
-			if (!EditorApplication.isCompiling && !EditorApplication.isUpdating && needUpdate)
-			{
-				needUpdate = false;
-				//    Debug.Log("Compiled in background");
-				AssetDatabase.Refresh();
-			}
-		}
-		// [MenuItem("Tools/Stop Auto Compilation")]
-		// public static void StopAutoCompilation()=>_closeListener();
+                listener = new HttpListener();
+                listener.Prefixes.Add("http://127.0.0.1:" + port + "/refresh/");
+                listener.Start();
+                listener.BeginGetContext(new AsyncCallback(OnRequest), listener);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("自动编译启动失败: " + e);
+                throw;
+            }
+        }
 
-		// [MenuItem("Tools/Start Auto Compilation")]
-		// public static void StartAutoCompilation()=>_createListener();
-		private static void OnCompilationStarted(object _) => _closeListener();
-		// private static void OnCompilationFinished(object _) => _createListener();
-	}
+        private static void OnRequest(IAsyncResult result)
+        {
+            if (listener == null || !listener.IsListening)
+                return;
+
+            HttpListenerContext context = null;
+
+            try
+            {
+                context = listener.EndGetContext(result);
+            }
+            catch (ObjectDisposedException)
+            {
+                return; // 监听器已关闭
+            }
+
+            if (context != null && !EditorApplication.isCompiling)
+            {
+                needUpdate = true;
+                listener.BeginGetContext(new AsyncCallback(OnRequest), listener);
+            }
+        }
+
+        private static void _closeListener()
+        {
+            if (listener == null)
+                return;
+
+            Debug.Log("关闭监听器");
+            listener.Stop();
+            listener.Close();
+            listener = null;
+        }
+
+        private static void onUpdate()
+        {
+            if (!EditorApplication.isCompiling && !EditorApplication.isUpdating && needUpdate)
+            {
+                needUpdate = false;
+                AssetDatabase.Refresh();
+            }
+        }
+
+        private static void OnCompilationStarted(object _) => _closeListener();
+    }
 }
-
-//TODO : if there is error,the auto compile will stop
-//TODO : this should be a package to avoid compile
