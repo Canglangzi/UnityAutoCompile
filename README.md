@@ -1,8 +1,17 @@
 # Unity Auto Compile
 this extesion will trigger Unity to compile when saved a file in VS Code.
 ![Animation](https://github.com/PostCyberPunk/UnityAutoCompile/assets/134976996/cb126a25-b72b-4152-898c-06ae374a7ffe)
-## Requirement
-Install [this package](https://github.com/PostCyberPunk/VSCodeUnityAutoCompliation) to your projcet
+## Requirement  
+
+Install [this package](https://github.com/PostCyberPunk/VSCodeUnityAutoCompliation) to your projcet [Not yet]  
+
+------------------------------------------------------------------------------------------------------------------
+Unity:   
+Place CLz_AutoCompile under Editor
+
+VsCode：  
+In VsCode-Extensions-upper right corner-install with .VSIX here
+
 
 ## Known isssues
 ~~You have to force compile once before the auto-compilation works~~
